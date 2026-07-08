@@ -1,7 +1,7 @@
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
 	forbidden: [
-		// domain → 外部層 禁止
+		// domain → 外部層 禁止（domain は最内層。外部依存を持たない）
 		{
 			name: 'domain-no-depend-on-outer-layers',
 			severity: 'error',
@@ -15,37 +15,28 @@ module.exports = {
 				],
 			},
 		},
-		// application → infrastructure 禁止
+		// application → infrastructure 禁止（Gateway interface 経由のみ）
 		{
 			name: 'application-no-depend-on-infrastructure',
 			severity: 'error',
 			comment:
-				'application 層は infrastructure に直接依存してはならない（Gateway interface 経由のみ）',
+				'application 層は infrastructure に直接依存してはならない（domain の Gateway interface 経由のみ）',
 			from: { path: 'src/backend/application/' },
 			to: { path: 'src/backend/infrastructure/' },
 		},
-		// presentation/loaders, actions → domain 禁止
+		// application → presentation 禁止
 		{
-			name: 'presentation-loaders-actions-no-depend-on-domain',
+			name: 'application-no-depend-on-presentation',
 			severity: 'error',
-			comment: 'presentation/loaders, actions は domain に直接依存してはならない',
-			from: { path: 'src/backend/presentation/(loaders|actions)/' },
-			to: { path: 'src/backend/domain/' },
+			comment: 'application 層は presentation に依存してはならない',
+			from: { path: 'src/backend/application/' },
+			to: { path: 'src/backend/presentation/' },
 		},
-		// presentation/loaders, actions → infrastructure 禁止
-		{
-			name: 'presentation-loaders-actions-no-depend-on-infrastructure',
-			severity: 'error',
-			comment:
-				'presentation/loaders, actions は infrastructure に直接依存してはならない（composition 経由で解決）',
-			from: { path: 'src/backend/presentation/(loaders|actions)/' },
-			to: { path: 'src/backend/infrastructure/' },
-		},
-		// frontend → backend/presentation 以外禁止
+		// frontend → backend/presentation 以外禁止（composition 経由でのみ検知機能を利用）
 		{
 			name: 'frontend-only-depend-on-presentation',
 			severity: 'error',
-			comment: 'frontend は backend/presentation のみ参照可',
+			comment: 'frontend は backend/presentation（composition）のみ参照可',
 			from: { path: '(src/app/|src/frontend/)' },
 			to: {
 				path: 'src/backend/',

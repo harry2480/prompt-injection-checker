@@ -21,7 +21,6 @@ ignore:
   - "**/*.test.ts"
   - "**/*.d.ts"
   - "apps/webapp/test/**"
-  - "apps/webapp/prisma/**"
   - "apps/webapp/*.config.*"
   - "apps/webapp/src/app/**/page.tsx"
   - "apps/webapp/src/app/**/layout.tsx"
