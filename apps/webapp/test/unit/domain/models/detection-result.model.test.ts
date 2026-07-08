@@ -75,6 +75,19 @@ describe('DetectionResult.from', () => {
 		expect(result.score.value).toBe(20);
 	});
 
+	it('広い検出が複数の既存と重なる場合も 1 件に統合する', () => {
+		// D3[3,12) は D1[0,5) と D2[10,15) の両方に重なり、重みで両者に勝つ
+		const cat = 'encoded-payload' as const;
+		const result = DetectionResult.from('x'.repeat(15), [
+			raw(fakeRule('d1', cat, 10), 0, 5, 'x'.repeat(5)),
+			raw(fakeRule('d2', cat, 5), 10, 15, 'x'.repeat(5)),
+			raw(fakeRule('d3', cat, 20), 3, 12, 'x'.repeat(9)),
+		]);
+		expect(result.detectionCount).toBe(1);
+		expect(result.detections[0].ruleId).toBe('d3');
+		expect(result.score.value).toBe(20);
+	});
+
 	it('異なるカテゴリの重なりは両方保持する', () => {
 		const result = DetectionResult.from('x'.repeat(10), [
 			raw(fakeRule('a', 'encoded-payload', 20), 0, 10, 'x'.repeat(10)),

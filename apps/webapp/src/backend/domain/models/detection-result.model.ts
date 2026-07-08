@@ -72,19 +72,27 @@ export class DetectionResult {
 	private static dedupeOverlaps(sorted: readonly Detection[]): Detection[] {
 		const kept: Detection[] = [];
 		for (const d of sorted) {
-			const overlapIndex = kept.findIndex(
+			// d と重なる同一カテゴリの既存検出をすべて集める
+			// （広い d が複数の既存と重なるケースを取りこぼさない）
+			const overlapping = kept.filter(
 				(k) => k.category === d.category && d.start < k.end && k.start < d.end,
 			);
-			if (overlapIndex === -1) {
+			if (overlapping.length === 0) {
 				kept.push(d);
 				continue;
 			}
-			const existing = kept[overlapIndex];
+			// d が重なる全既存より優先される（重みが高い、同値なら広い）場合のみ置き換える
 			const dWidth = d.end - d.start;
-			const existingWidth = existing.end - existing.start;
-			if (d.weight > existing.weight || (d.weight === existing.weight && dWidth > existingWidth)) {
-				kept[overlapIndex] = d;
+			const dWins = overlapping.every(
+				(k) => d.weight > k.weight || (d.weight === k.weight && dWidth > k.end - k.start),
+			);
+			if (dWins) {
+				for (const k of overlapping) {
+					kept.splice(kept.indexOf(k), 1);
+				}
+				kept.push(d);
 			}
+			// dWins でなければ d は破棄し既存を優先する（kept は同一カテゴリで非重複を維持）
 		}
 		return kept.sort((a, b) => a.start - b.start || a.end - b.end);
 	}
