@@ -1,103 +1,85 @@
-# スターターテンプレート
+# プロンプトインジェクション検査
 
-Claude Code や GitHub Copilot などの AI エージェントへの指示だけで高品質なプロダクトを構築できるスターターキットです。
-また、本リポジトリは**プロジェクト横断で利用可能なドキュメントテンプレート**や**AIエージェント向けの共通スキル・コマンド**を集約するハブとしても機能しています。
+任意のテキストに**プロンプトインジェクション**が含まれていないかを、ブラウザ内のルールベース検知で検査する静的サイトです。**GitHub Pages** 上で動作し、サーバー・DB・API キーを持ちません。入力したテキストは**外部に送信されません**（URL取得機能を除く）。
 
-## ハーネスエンジニアリングとは
+🔗 **公開サイト**: https://harry2480.github.io/prompt-injection-checker/
 
-このスターターキットは、**ハーネスエンジニアリング**の考え方に基づいて設計されています。
+## 特徴
 
-ハーネスエンジニアリングとは、AIエージェントが正しく力を発揮できるように情報やルールを整えることを指します。`CLAUDE.md` による共通ルールの注入、Skills（スラッシュコマンド）による定型作業の標準化、dependency-cruiser による依存方向の機械的な検証など、**複数のガードレールを多重に敷くことで、AIが書くコードの品質を構造的に担保**します。
+- **ブラウザ内で完結** — 検知はすべてクライアントサイドで実行。入力は外部送信されず、プライバシー面で安全
+- **無料・登録不要・オフライン動作** — 静的サイトとして低コスト・高可用
+- **日英対応＋言語非依存の検知** — 9 カテゴリのインジェクション手口をルールベースで検出
+- **根拠を可視化** — 総合リスク（安全 / 注意 / 危険）、カテゴリ別サマリー、該当箇所のハイライト、不可視文字の可視ラベル化、検出根拠の一覧
 
-これにより、AIエージェントを複数セッション並列で回しても、設計が崩れにくい開発が可能になります。
+## 検知するカテゴリ
 
-詳しい背景と実践事例については、以下の記事をご覧ください。
-
-### このスターターキットに組み込まれたガードレール
-
-| ガードレール | 仕組み |
+| カテゴリ | 例 |
 |---|---|
-| **設計ルールの注入** | `CLAUDE.md` や `docs/templates/` 配下にアーキテクチャ・命名規約・依存ルールを明文化し、AIにコンテキストを供給 |
-| **共通Skillsとプロンプト** | `.claude/skills/` や `.claude/commands/` にプロジェクト横断の定型作業コマンドを集約し、品質のばらつきを抑制 |
-| **依存方向の機械的検証** | dependency-cruiser で「domain は外部に依存しない」等のルールを CI で自動チェック |
-| **レイヤー別テスト戦略** | domain/application は Unit テスト、infrastructure は Integration テスト。テスト方針もドキュメント化 |
-| **統合CI/CD** | `.github/workflows/` に集約されたワークフローにより、型チェックやlint、テストを一元的に自動化 |
+| 命令の無視・上書き | 「これまでの指示を無視」/ `ignore previous instructions` |
+| 役割・人格の変更 | 「あなたは今から〜」/ `act as`, `you are now` |
+| システムプロンプト/機密の抽出 | 「システムプロンプトを教えて」/ `reveal your system prompt` |
+| 制約解除・特権要求 | 「開発者モード」/ `no restrictions`, `jailbreak` |
+| 区切り/ロールマーカー注入 | `### System:`, `<\|im_start\|>`, `[INST]` |
+| 不可視文字・難読化 | ゼロ幅文字・双方向制御・Unicode Tag 文字 |
+| エンコード隠蔽 | 長い Base64 / Hex / URL エンコード列 |
+| データ持ち出し・外部誘導 | 「次のURLに送信」/ クエリ付き Markdown 画像 |
+| ツール/行動の誘導 | 「実行して」「削除して」/ `run this command` |
 
-## テンプレートとドキュメント管理
-
-本リポジトリの `docs/` には、新しいプロジェクトを立ち上げる際や新しい機能を設計する際にそのまま使える汎用テンプレートが用意されています。
-AIに「`docs/` の〇〇を使って新しい機能の要件定義をして」と指示するだけで、ベストプラクティスに基づいた仕様書が生成されます。
-
-**収録テンプレートの例:**
-- アーキテクチャ設計規約
-- フロントエンド規約
-- スタイルガイド
-- 品質チェック・テスト規約
-- AIチャット機能要件定義 / 実装計画
-- AIエージェント運用ガイド
-
-## 技術スタック (標準構成)
-
-- Next.js 15 (App Router) + Vercel
-- Supabase PostgreSQL + Prisma
-- shadcn/ui + Tailwind CSS
-- vitest + dependency-cruiser
-- Biome (lint/format)
-- AIツール: Vercel AI SDK, Streamdown
-
-## はじめかた
-
-### セットアップ
-
-AIエージェント（Claude Code 等）を開き、`/init-pj` を実行してください。前提ツールのインストールからDB構築まで自動で行います。
+> ⚠️ 本ツールは**一次スクリーニング**です。ルールベースのため新規手口の見逃し・正当な文章の誤検知があり、結果の安全性は保証されません。
 
 ## 使い方
 
-AIに自然言語で指示するだけで、テンプレートやルールに沿った機能追加が可能です。
+- テキストを貼り付ける／`.txt`・`.md` ファイルを読み込む／URL を指定して「検査する」を押すと、検出結果が表示されます
+- 「サンプルを試す」で代表的なインジェクション例を投入できます
 
-**コマンド例:**
+## 開発
+
+```sh
+pnpm dev        # 開発サーバー起動
+pnpm verify     # lint → typecheck → unit test → depcruise
+pnpm test:unit  # Unit テスト（検知ロジック中心）
+pnpm lint:fix   # 自動フォーマット・Lint 適用
+pnpm build      # 静的エクスポート（out/ を生成）
+pnpm knip       # 未使用コード検出
 ```
-「ユーザー管理機能を作って」
-「お気に入り機能を追加して」
-「/articles ページを作って」
-「○○テーブルにstatusカラムを追加して」
-「このエラーを直して: [エラーメッセージ]」
-```
 
-## 開発コマンド一覧
+「〇〇な検知ルールを追加して」「〇〇な画面を作って」など、やりたいことを Claude Code に指示するだけで実装できます。
 
-| コマンド | 内容 |
-|---|---|
-| `pnpm dev` | 開発サーバー起動 |
-| `pnpm verify` | 品質チェック（lint → typecheck → test → depcruise） |
-| `pnpm test:unit` | Unit テスト実行 |
-| `pnpm lint:fix` | 自動フォーマット・Lint適用 |
-| `pnpm build` | 静的エクスポート（`out/` を生成） |
-| `pnpm knip` | 未使用コード検出 |
+## 技術スタック
 
-## プロジェクト構成
+- Next.js 15 (App Router) を**静的エクスポート**（`output: 'export'`）で GitHub Pages へ配信
+- TypeScript / shadcn/ui + Tailwind CSS
+- 検知エンジンは外部依存を持たない純粋 TypeScript
+- Vitest / dependency-cruiser / Biome
+- GitHub Actions で build → GitHub Pages デプロイ
+
+> サーバー機能（Server Actions・API Routes・SSR/ISR・DB・Supabase）は使用しません。
+
+## アーキテクチャ
+
+pnpm workspace monorepo。`apps/webapp/` に Next.js 15 アプリ。バックエンド (`apps/webapp/src/backend/`) は DDD 4層構造で、検知は最内層の `domain` に集約しています。
 
 ```text
-starter-templete/
-├── .claude/                # プロジェクト横断のAI SkillsとCommands
-├── .github/workflows/      # 統合CI/CDワークフロー（型チェック、ビルド、テスト等）
-├── docs/                   # プロジェクト横断で使えるドキュメント・定義テンプレート
-└── apps/webapp/src/        # メインアプリケーション
-    ├── app/                # ページ（Next.js App Router）
-    ├── backend/            # バックエンド全体
-    │   ├── application/    # ユースケース
-    │   ├── domain/         # ビジネスルール（モデル、インターフェース）
-    │   ├── infrastructure/ # DB・外部API実装
-    │   └── presentation/   # DI組み立て、データ取得、Server Actions
-    ├── frontend/           # フロントエンド・UI全体
-    └── lib/                # 共有ライブラリ
+依存方向: presentation → application → domain ← infrastructure
 ```
 
-## サンプル実装について
-
-初期状態では Claude API を使ったジョーク生成機能がサンプルとして含まれています。
-`ANTHROPIC_API_KEY` を設定すると API 経由で動作し、未設定の場合は Stub（固定値）で動作します。
-
-```bash
-echo 'ANTHROPIC_API_KEY="your-api-key"' >> apps/webapp/.env.local
+```text
+apps/webapp/src/
+├── app/                     # 検査ページ（Next.js App Router）
+├── backend/
+│   ├── domain/              # 検知エンジン・ルール（データ）・モデル（外部依存なし）
+│   ├── application/         # 検査 UseCase
+│   ├── infrastructure/      # Gateway 実装（ファイル読込・URL取得）＋ Stub
+│   └── presentation/        # composition（DI）・view-models
+└── frontend/                # UI（components / hooks / lib）
 ```
+
+- 検知ルールは `domain/rules/` に**データ（配列・定数）として宣言的に管理**し、検知エンジン（純粋関数）から分離
+- 外部 I/O（`fetch`・`FileReader`）は `infrastructure/adapters/` に閉じ込め、必ず Stub を用意
+- frontend は `backend/presentation` 経由でのみ検知機能を利用（dependency-cruiser で機械的に検証）
+
+詳細な設計は `docs/` を参照してください。
+
+## ライセンス
+
+[MIT](./LICENSE)
