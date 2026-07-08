@@ -19,10 +19,8 @@ reviews:
       - "dependabot"
       - "renovate"
   path_filters:
-    - "admin/**"
-    - "web/**"
-    - "packages/**"
-    - "supabase/**"
+    - "apps/**"
+    - ".github/**"
     - "docs/**"
     - "!**/*.md"
     - "!**/*.mdx"

@@ -72,7 +72,7 @@ AIに自然言語で指示するだけで、テンプレートやルールに沿
 | `pnpm verify` | 品質チェック（lint → typecheck → test → depcruise） |
 | `pnpm test:unit` | Unit テスト実行 |
 | `pnpm lint:fix` | 自動フォーマット・Lint適用 |
-| `pnpm db:migrate` | DBマイグレーション |
+| `pnpm build` | 静的エクスポート（`out/` を生成） |
 | `pnpm knip` | 未使用コード検出 |
 
 ## プロジェクト構成
