@@ -104,6 +104,16 @@ describe('InjectionDetectorService — カテゴリ別の陽性検知', () => {
 		expect(hasCategory(input, 'hidden-character')).toBe(true);
 	});
 
+	it('連続する不可視文字は 1 件の検出にまとめる（検出数の爆発を防ぐ）', () => {
+		const zwsp = String.fromCharCode(0x200b);
+		const input = `A${zwsp.repeat(100)}B`;
+		const hidden = detector
+			.inspect(input)
+			.detections.filter((d) => d.category === 'hidden-character');
+		expect(hidden).toHaveLength(1);
+		expect(hidden[0].value.length).toBe(100);
+	});
+
 	it('連続した URL エンコード列を encoded-payload として検知する', () => {
 		const input = 'payload=%41%42%43%44%45%46%47%48%49%4A';
 		expect(hasCategory(input, 'encoded-payload')).toBe(true);

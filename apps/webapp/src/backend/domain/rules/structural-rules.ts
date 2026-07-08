@@ -59,7 +59,7 @@ export const structuralRules: readonly InjectionRule[] = [
 		weight: 40,
 		description: 'ゼロ幅スペース等の不可視文字（U+200B/200C, U+2060, U+FEFF）で指示を隠す手口。',
 		// ZWJ(U+200D) は合成絵文字の正規構成要素のため除外する
-		pattern: /\u200B|\u200C|\u2060|\uFEFF/,
+		pattern: /(?:\u200B|\u200C|\u2060|\uFEFF)+/,
 	}),
 	createRegexRule({
 		id: 'struct-hidden-bidi',
@@ -67,7 +67,7 @@ export const structuralRules: readonly InjectionRule[] = [
 		language: 'any',
 		weight: 45,
 		description: '双方向制御文字（U+202A–202E, U+2066–2069）で表示順を偽装する手口。',
-		pattern: /[\u202A-\u202E\u2066-\u2069]/,
+		pattern: /[\u202A-\u202E\u2066-\u2069]+/,
 	}),
 	createRegexRule({
 		id: 'struct-hidden-tag-chars',
@@ -75,7 +75,7 @@ export const structuralRules: readonly InjectionRule[] = [
 		language: 'any',
 		weight: 50,
 		description: 'Unicode Tag 文字（U+E0000–E007F）で不可視の指示を埋め込む手口。',
-		pattern: /[\u{E0000}-\u{E007F}]/u,
+		pattern: /[\u{E0000}-\u{E007F}]+/u,
 	}),
 
 	// エンコード隠蔽
