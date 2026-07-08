@@ -123,7 +123,6 @@ export function InspectionForm({ onInspect, onClear, isInspecting }: InspectionF
 			{/* ファイル入力 */}
 			{mode === 'file' && (
 				<div className="space-y-1.5">
-					{/* biome-ignore lint/a11y/noLabelWithoutControl: label は input[type=file] を包含している */}
 					<Label
 						htmlFor={fileInputId}
 						onDragOver={(e) => {
