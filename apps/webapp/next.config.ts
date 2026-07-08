@@ -1,19 +1,20 @@
 import type { NextConfig } from 'next';
 
-const securityHeaders = [
-	{ key: 'X-Frame-Options', value: 'DENY' },
-	{ key: 'X-Content-Type-Options', value: 'nosniff' },
-	{ key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-	{
-		key: 'Strict-Transport-Security',
-		value: 'max-age=63072000; includeSubDomains; preload',
-	},
-];
+// GitHub Pages のプロジェクトページ配信用サブパス。
+// CI（デプロイワークフロー）で NEXT_PUBLIC_BASE_PATH を設定する。
+// ローカル開発では未設定（ルート配信）。
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 const nextConfig: NextConfig = {
-	async headers() {
-		return [{ source: '/(.*)', headers: securityHeaders }];
-	},
+	// GitHub Pages への静的エクスポート（サーバー機能を使わない）
+	output: 'export',
+	// 静的エクスポートでは next/image の最適化サーバーを使えない
+	images: { unoptimized: true },
+	// サブパス配信時のみ有効化
+	basePath: basePath || undefined,
+	assetPrefix: basePath || undefined,
+	// GitHub Pages のディレクトリ index.html 解決を安定させる
+	trailingSlash: true,
 };
 
 export default nextConfig;
