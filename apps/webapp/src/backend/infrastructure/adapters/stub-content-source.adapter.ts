@@ -8,10 +8,15 @@ export class StubContentSourceAdapter implements ContentSourceGateway {
 	constructor(
 		private readonly fileContent = '',
 		private readonly urlContent = '',
+		private readonly pdfContent = '',
 	) {}
 
 	async readFile(_file: File): Promise<string> {
 		return this.fileContent;
+	}
+
+	async readPdf(_file: File): Promise<string> {
+		return this.pdfContent;
 	}
 
 	async fetchUrl(_url: string): Promise<string> {

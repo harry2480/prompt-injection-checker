@@ -34,13 +34,42 @@ describe('InspectTextUseCase', () => {
 
 	it('file ソースは Gateway.readFile の内容を検査する', async () => {
 		const gateway = new StubContentSourceAdapter(INJECTION_TEXT);
+		const readPdf = vi.spyOn(gateway, 'readPdf');
 		const useCase = createUseCase(gateway);
-		const file = { name: 'a.txt' } as unknown as File;
+		const file = { name: 'a.txt', type: 'text/plain' } as unknown as File;
 
 		const result = await useCase.execute({ kind: 'file', file });
 
 		expect(result.isEmpty).toBe(false);
 		expect(result.detections.some((d) => d.category === 'instruction-override')).toBe(true);
+		expect(readPdf).not.toHaveBeenCalled();
+	});
+
+	it('PDF ファイル（拡張子）は Gateway.readPdf の内容を検査する', async () => {
+		const gateway = new StubContentSourceAdapter('', '', INJECTION_TEXT);
+		const readFile = vi.spyOn(gateway, 'readFile');
+		const readPdf = vi.spyOn(gateway, 'readPdf');
+		const useCase = createUseCase(gateway);
+		const file = { name: 'doc.PDF', type: '' } as unknown as File;
+
+		const result = await useCase.execute({ kind: 'file', file });
+
+		expect(result.isEmpty).toBe(false);
+		expect(result.detections.some((d) => d.category === 'instruction-override')).toBe(true);
+		expect(readPdf).toHaveBeenCalledTimes(1);
+		expect(readFile).not.toHaveBeenCalled();
+	});
+
+	it('PDF ファイル（MIME）は Gateway.readPdf の内容を検査し、進捗コールバックを渡す', async () => {
+		const gateway = new StubContentSourceAdapter('', '', INJECTION_TEXT);
+		const readPdf = vi.spyOn(gateway, 'readPdf');
+		const useCase = createUseCase(gateway);
+		const file = { name: 'scan', type: 'application/pdf' } as unknown as File;
+		const onPdfProgress = vi.fn();
+
+		await useCase.execute({ kind: 'file', file }, { onPdfProgress });
+
+		expect(readPdf).toHaveBeenCalledWith(file, onPdfProgress);
 	});
 
 	it('url ソースは Gateway.fetchUrl の内容を検査する', async () => {
@@ -66,10 +95,11 @@ describe('InspectTextUseCase', () => {
 	it('Gateway が throw した場合は呼び出し元へ伝播する', async () => {
 		const gateway: ContentSourceGateway = {
 			readFile: vi.fn().mockRejectedValue(new Error('read failed')),
+			readPdf: vi.fn(),
 			fetchUrl: vi.fn(),
 		};
 		const useCase = createUseCase(gateway);
-		const file = { name: 'a.txt' } as unknown as File;
+		const file = { name: 'a.txt', type: 'text/plain' } as unknown as File;
 		const source: InspectionSource = { kind: 'file', file };
 
 		await expect(useCase.execute(source)).rejects.toThrow('read failed');

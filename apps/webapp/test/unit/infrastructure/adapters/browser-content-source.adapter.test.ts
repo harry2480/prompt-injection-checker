@@ -1,6 +1,7 @@
 import {
 	BrowserContentSourceAdapter,
 	MAX_CONTENT_SIZE_BYTES,
+	MAX_PDF_SIZE_BYTES,
 } from '@/backend/infrastructure/adapters/browser-content-source.adapter';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,6 +22,18 @@ describe('BrowserContentSourceAdapter.readFile', () => {
 			text: async () => '',
 		} as unknown as File;
 		await expect(adapter.readFile(file)).rejects.toThrow(/上限/);
+	});
+});
+
+describe('BrowserContentSourceAdapter.readPdf', () => {
+	it('上限を超える PDF は pdfjs を読み込む前に例外を投げる', async () => {
+		const file = {
+			name: 'huge.pdf',
+			type: 'application/pdf',
+			size: MAX_PDF_SIZE_BYTES + 1,
+			arrayBuffer: async () => new ArrayBuffer(0),
+		} as unknown as File;
+		await expect(adapter.readPdf(file)).rejects.toThrow(/上限/);
 	});
 });
 

@@ -138,16 +138,21 @@ export function InspectionForm({ onInspect, onClear, isInspecting }: InspectionF
 					>
 						<FileText className="h-8 w-8 text-muted-foreground" aria-hidden />
 						<span className="text-sm text-muted-foreground">
-							{file ? file.name : 'クリックまたはドラッグ&ドロップで .txt / .md を選択'}
+							{file ? file.name : 'クリックまたはドラッグ&ドロップで .txt / .md / .pdf を選択'}
 						</span>
 						<span className="text-xs text-muted-foreground">
-							ファイルはブラウザ内で処理され、外部に送信されません（上限 1MB）
+							ファイルはブラウザ内で処理され、外部に送信されません（テキスト上限 1MB / PDF 上限
+							20MB）
+						</span>
+						<span className="text-xs text-muted-foreground">
+							文字を選択できない画像 PDF は、ブラウザ内 OCR（日本語＋英語）で読み取ります。
+							初回はOCRモデルの取得に時間がかかります。
 						</span>
 						<Input
 							ref={fileInputRef}
 							id={fileInputId}
 							type="file"
-							accept=".txt,.md,text/plain,text/markdown"
+							accept=".txt,.md,.pdf,text/plain,text/markdown,application/pdf"
 							className="hidden"
 							onChange={(e) => {
 								setFile(e.target.files?.[0] ?? null);

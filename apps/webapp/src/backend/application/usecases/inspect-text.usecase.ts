@@ -1,4 +1,7 @@
-import type { ContentSourceGateway } from '../../domain/gateways/content-source.gateway';
+import type {
+	ContentSourceGateway,
+	PdfProgressCallback,
+} from '../../domain/gateways/content-source.gateway';
 import type { DetectionResult } from '../../domain/models/detection-result.model';
 import type { InjectionDetectorService } from '../../domain/services/injection-detector.service';
 
@@ -7,6 +10,11 @@ export type InspectionSource =
 	| { kind: 'text'; text: string }
 	| { kind: 'file'; file: File }
 	| { kind: 'url'; url: string };
+
+/** 検査実行時の任意オプション（PDF の抽出進捗を受け取るなど） */
+export interface InspectOptions {
+	onPdfProgress?: PdfProgressCallback;
+}
 
 /**
  * テキスト検査のオーケストレーション UseCase。
@@ -20,20 +28,27 @@ export class InspectTextUseCase {
 	) {}
 
 	/** 入力ソースを検査し、検出結果を返す */
-	async execute(source: InspectionSource): Promise<DetectionResult> {
-		const text = await this.resolveText(source);
+	async execute(source: InspectionSource, options?: InspectOptions): Promise<DetectionResult> {
+		const text = await this.resolveText(source, options);
 		return this.detector.inspect(text);
 	}
 
 	/** 入力ソースから検査対象のテキストを取り出す */
-	private async resolveText(source: InspectionSource): Promise<string> {
+	private async resolveText(source: InspectionSource, options?: InspectOptions): Promise<string> {
 		switch (source.kind) {
 			case 'text':
 				return source.text;
 			case 'file':
-				return this.contentSource.readFile(source.file);
+				return this.isPdf(source.file)
+					? this.contentSource.readPdf(source.file, options?.onPdfProgress)
+					: this.contentSource.readFile(source.file);
 			case 'url':
 				return this.contentSource.fetchUrl(source.url);
 		}
+	}
+
+	/** PDF ファイルかどうかを MIME タイプ・拡張子から判定する */
+	private isPdf(file: File): boolean {
+		return file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
 	}
 }

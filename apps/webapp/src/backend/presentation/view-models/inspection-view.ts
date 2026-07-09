@@ -16,6 +16,7 @@ export type { InjectionCategory } from '../../domain/rules/rule.types';
 export { CATEGORY_METADATA } from '../../domain/rules/category-metadata';
 export type { CategoryMetadata } from '../../domain/rules/category-metadata';
 export type { InspectionSource } from '../../application/usecases/inspect-text.usecase';
+export type { PdfProgress } from '../../domain/gateways/content-source.gateway';
 
 /** リスクレベルの表示用メタ情報 */
 export interface RiskLevelMetadata {
