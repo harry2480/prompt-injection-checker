@@ -16,7 +16,7 @@
 		"lucide-react": "^0.474",
 		"next": "^15",
 		"pdfjs-dist": "^6.1.200",
-		"radix-ui": "^1.4.3",
+		"radix-ui": "^1.6.2",
 		"react": "^19",
 		"react-dom": "^19",
 		"tailwind-merge": "^3",
