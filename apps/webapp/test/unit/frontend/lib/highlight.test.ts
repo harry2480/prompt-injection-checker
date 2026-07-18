@@ -49,6 +49,39 @@ describe('buildHighlightSegments', () => {
 		expect(mid?.detection?.weight).toBe(50);
 		expect(mid?.overlapCount).toBe(2);
 	});
+
+	it('複数の重なりでも各区間の代表重みと overlapCount が正しい', () => {
+		// [0,8)=w10, [2,6)=w40, [4,10)=w30 の三重なり
+		const segments = buildHighlightSegments('0123456789', [
+			detection(0, 8, 10),
+			detection(2, 6, 40),
+			detection(4, 10, 30),
+		]);
+		const byText = Object.fromEntries(segments.map((s) => [s.text, s]));
+		// 境界: 0,2,4,6,8,10 → 区間 [0,2)[2,4)[4,6)[6,8)[8,10)
+		expect(byText['01']).toMatchObject({ overlapCount: 1, detection: { weight: 10 } });
+		expect(byText['23']).toMatchObject({ overlapCount: 2, detection: { weight: 40 } });
+		expect(byText['45']).toMatchObject({ overlapCount: 3, detection: { weight: 40 } });
+		expect(byText['67']).toMatchObject({ overlapCount: 2, detection: { weight: 30 } });
+		expect(byText['89']).toMatchObject({ overlapCount: 1, detection: { weight: 30 } });
+	});
+
+	it('テキスト長を超える検出範囲はクランプして扱う', () => {
+		const segments = buildHighlightSegments('01234', [detection(2, 999, 40)]);
+		expect(segments.map((s) => s.text)).toEqual(['01', '234']);
+		expect(segments[0].detection).toBeNull();
+		expect(segments[1].detection?.weight).toBe(40);
+	});
+
+	it('重み同点の重なりは元配列で先に来る検出を代表にする（start の前後に依存しない）', () => {
+		// 後方 start だが配列で先の A と、前方 start で配列後の B が重なり区間 [5,10) で同点
+		const a = { ...detection(5, 10, 50), ruleId: 'A' };
+		const b = { ...detection(0, 10, 50), ruleId: 'B' };
+		const segments = buildHighlightSegments('0123456789', [a, b]);
+		const overlap = segments.find((s) => s.text === '56789');
+		expect(overlap?.overlapCount).toBe(2);
+		expect(overlap?.detection?.ruleId).toBe('A');
+	});
 });
 
 describe('invisibleLabel', () => {
