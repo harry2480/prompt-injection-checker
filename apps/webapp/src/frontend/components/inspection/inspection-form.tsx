@@ -142,11 +142,11 @@ export function InspectionForm({ onInspect, onClear, isInspecting }: InspectionF
 						</span>
 						<span className="text-xs text-muted-foreground">
 							ファイルはブラウザ内で処理され、外部に送信されません（テキスト上限 1MB / PDF 上限
-							20MB）
+							100MB）
 						</span>
 						<span className="text-xs text-muted-foreground">
 							文字を選択できない画像 PDF は、ブラウザ内 OCR（日本語＋英語）で読み取ります。
-							初回はOCRモデルの取得に時間がかかります。
+							初回はOCRモデルの取得に時間がかかり、ページ数が多いと検査完了まで時間を要します。
 						</span>
 						<Input
 							ref={fileInputRef}

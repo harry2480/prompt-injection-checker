@@ -7,23 +7,35 @@ import type {
 /** テキストファイル・URL 取得内容の上限（1MB）。過大な入力によるフリーズを防ぐ */
 export const MAX_CONTENT_SIZE_BYTES = 1024 * 1024;
 
-/** PDF ファイルの上限（20MB）。画像 PDF はサイズが大きくなりがちなためテキストより緩める */
-export const MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024;
+/** PDF ファイルの上限（100MB）。画像 PDF はサイズが大きくなりがちなためテキストより大幅に緩める */
+export const MAX_PDF_SIZE_BYTES = 100 * 1024 * 1024;
 
 /** OCR の暴走を防ぐため検査対象とするページ数の上限 */
-export const MAX_PDF_PAGES = 30;
+export const MAX_PDF_PAGES = 50;
 
 /** テキスト層から抽出したページの文字数がこの値未満なら「画像ページ」とみなし OCR に回す */
 const MIN_TEXT_CHARS_PER_PAGE = 8;
 
-/** 抽出テキストの上限（検知エンジンの処理を軽く保つ） */
-const MAX_EXTRACTED_TEXT_LENGTH = MAX_CONTENT_SIZE_BYTES;
+/** 抽出テキストの上限（検知エンジンの処理を軽く保つ）。PDF は大きくなりがちなため 5MB まで許容する */
+const MAX_EXTRACTED_TEXT_LENGTH = 5 * 1024 * 1024;
 
 /** OCR 用にページ画像を描画する際の拡大率（精度確保のため等倍より大きく） */
 const OCR_RENDER_SCALE = 2;
 
+/**
+ * OCR 用キャンバスの総ピクセル数上限（約 400 万 px ≒ 2000×2000）。
+ * 高解像度ページを OCR_RENDER_SCALE 倍すると巨大キャンバスとなりメインスレッドを固めるため、
+ * これを超える場合は拡大率を自動的に下げてメモリと描画時間を抑える。
+ */
+const OCR_MAX_CANVAS_PIXELS = 4_000_000;
+
 const LIMIT_MB = MAX_CONTENT_SIZE_BYTES / (1024 * 1024);
 const PDF_LIMIT_MB = MAX_PDF_SIZE_BYTES / (1024 * 1024);
+
+/** イベントループへ制御を返し、進捗描画とブラウザの応答性を確保する */
+function yieldToEventLoop(): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 /**
  * ブラウザ I/O を用いた ContentSourceGateway の本番実装。
@@ -74,6 +86,8 @@ export class BrowserContentSourceAdapter implements ContentSourceGateway {
 					message: `PDF のテキストを解析中… (${pageNo}/${pageCount} ページ)`,
 					ratio: pageNo / pageCount,
 				});
+				// ページ間で制御を返し、進捗表示の更新とブラウザの応答性を保つ
+				await yieldToEventLoop();
 				const page = await doc.getPage(pageNo);
 				try {
 					const content = await page.getTextContent();
@@ -167,11 +181,12 @@ export class BrowserContentSourceAdapter implements ContentSourceGateway {
 					message: `OCR で読み取り中… (${done + 1}/${imagePages.length} ページ)`,
 					ratio: done / imagePages.length,
 				});
+				// ページ間で制御を返し、進捗表示の更新とブラウザの応答性を保つ
+				await yieldToEventLoop();
 				const page = await doc.getPage(pageNo);
-				const canvas = this.renderPageToCanvas(page);
+				const { canvas, scale } = this.renderPageToCanvas(page);
 				try {
-					await page.render({ canvas, viewport: page.getViewport({ scale: OCR_RENDER_SCALE }) })
-						.promise;
+					await page.render({ canvas, viewport: page.getViewport({ scale }) }).promise;
 					const { data } = await worker.recognize(canvas);
 					pageTexts[pageNo - 1] = data.text.trim();
 				} finally {
@@ -186,15 +201,26 @@ export class BrowserContentSourceAdapter implements ContentSourceGateway {
 		}
 	}
 
-	/** OCR 用に PDF ページを描画する空のキャンバスを用意する */
+	/**
+	 * OCR 用に PDF ページを描画する空のキャンバスを用意する。
+	 * OCR_RENDER_SCALE を基準としつつ、総ピクセル数が OCR_MAX_CANVAS_PIXELS を超える高解像度ページは
+	 * 拡大率を自動的に下げ、巨大キャンバスによるメインスレッドの固まり・メモリ枯渇を防ぐ。
+	 * 実際に用いた拡大率も返し、描画時の viewport と一致させる。
+	 */
 	private renderPageToCanvas(page: {
 		getViewport: (params: { scale: number }) => { width: number; height: number };
-	}): HTMLCanvasElement {
-		const viewport = page.getViewport({ scale: OCR_RENDER_SCALE });
+	}): { canvas: HTMLCanvasElement; scale: number } {
+		const base = page.getViewport({ scale: OCR_RENDER_SCALE });
+		const pixels = base.width * base.height;
+		const scale =
+			pixels > OCR_MAX_CANVAS_PIXELS
+				? OCR_RENDER_SCALE * Math.sqrt(OCR_MAX_CANVAS_PIXELS / pixels)
+				: OCR_RENDER_SCALE;
+		const viewport = page.getViewport({ scale });
 		const canvas = document.createElement('canvas');
 		canvas.width = Math.ceil(viewport.width);
 		canvas.height = Math.ceil(viewport.height);
-		return canvas;
+		return { canvas, scale };
 	}
 
 	/** http / https の妥当な URL のみ許可する（javascript: 等や相対文字列を弾く） */

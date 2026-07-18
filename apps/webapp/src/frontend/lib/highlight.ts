@@ -22,6 +22,10 @@ export interface HighlightSegment {
 /**
  * テキストと検出範囲から、重ならない連続した表示片の配列を生成する（純粋関数）。
  * 覆う検出が複数ある場合は最も重みの大きい検出を代表として採用する。
+ *
+ * 各境界点に「開始／終了する検出」を割り当てて 1 回のスイープで active 集合を更新するため、
+ * 検出数 D に対して素朴な O(D²)（境界ごとに全検出を走査）を避けられる。
+ * OCR 由来の大量検出でも表示生成でメインスレッドを固めにくくする。
  */
 export function buildHighlightSegments(
 	text: string,
@@ -30,32 +34,58 @@ export function buildHighlightSegments(
 	if (text.length === 0) return [];
 
 	const boundaries = new Set<number>([0, text.length]);
+	// 各境界点で開始／終了する検出をまとめる（範囲外は [0, text.length] にクランプ）
+	const startsAt = new Map<number, Detection[]>();
+	const endsAt = new Map<number, Detection[]>();
+	// 重み同点時の代表選択を素朴実装（detections 配列順で先着）と一致させるための元配列インデックス
+	const order = new Map<Detection, number>();
+	detections.forEach((d, i) => order.set(d, i));
 	for (const d of detections) {
-		if (d.start >= 0 && d.start <= text.length) boundaries.add(d.start);
-		if (d.end >= 0 && d.end <= text.length) boundaries.add(d.end);
+		const start = Math.max(d.start, 0);
+		const end = Math.min(d.end, text.length);
+		if (start >= end) continue; // 空・範囲外の検出はどの区間も覆わない
+		boundaries.add(start);
+		boundaries.add(end);
+		(startsAt.get(start) ?? setEmpty(startsAt, start)).push(d);
+		(endsAt.get(end) ?? setEmpty(endsAt, end)).push(d);
 	}
 	const points = [...boundaries].sort((a, b) => a - b);
 
 	const segments: HighlightSegment[] = [];
+	const active = new Set<Detection>();
 	for (let i = 0; i < points.length - 1; i++) {
-		const start = points[i];
-		const end = points[i + 1];
-		if (start >= end) continue;
+		const point = points[i];
+		// この点で終了する検出を外し、開始する検出を加える → active が [point, next) を覆う検出
+		for (const d of endsAt.get(point) ?? []) active.delete(d);
+		for (const d of startsAt.get(point) ?? []) active.add(d);
 
-		const covering = detections.filter((d) => d.start <= start && d.end >= end);
-		const top = covering.reduce<Detection | null>(
-			(best, d) => (best === null || d.weight > best.weight ? d : best),
-			null,
-		);
+		const start = point;
+		const end = points[i + 1];
+		// 覆う検出のうち最大重み、同点は元配列で先に来る検出（Set の反復順に依存しない）
+		let top: Detection | null = null;
+		for (const d of active) {
+			if (top === null || d.weight > top.weight) {
+				top = d;
+			} else if (d.weight === top.weight && (order.get(d) ?? 0) < (order.get(top) ?? 0)) {
+				top = d;
+			}
+		}
 		segments.push({
 			text: text.slice(start, end),
 			start,
 			end,
 			detection: top,
-			overlapCount: covering.length,
+			overlapCount: active.size,
 		});
 	}
 	return segments;
+}
+
+/** Map に空配列を用意して返す（境界点ごとの検出リスト初期化用） */
+function setEmpty(map: Map<number, Detection[]>, key: number): Detection[] {
+	const list: Detection[] = [];
+	map.set(key, list);
+	return list;
 }
 
 /** 不可視・制御文字のコードポイント → 表示ラベル */
